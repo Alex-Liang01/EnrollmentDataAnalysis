@@ -17,39 +17,39 @@ With all datasets combined, features were engineered to such as proportions for 
 #### Data Dictionary
 The resulting data dictionary is as follows:
 
-ID: Student identifying id
-HourStartMode:The mode of start times for each student  
-MorningClasses: Boolean value for more Morning classes (T) vs more Afternoon classes (F)
-Credits.Taken.Annually: Credits taken annually
-semesters_with_at_least_one_concentration_course: Number of semesters with at least one concentration course  
-Transfer: Boolean value for whether the student is a transfer student
-BUSMAJ: Boolean value for whether the student is a business major
-BUSJMA: Boolean value for whether the student is a business joint major
-MINOR: Boolean value for whether the student is a business minor
-FINCON: Boolean value for whether the student is in the financial concentration
-MKTGCON: Boolean value for whether the student is in the marketing concentration
-BUSCOP: Boolean value for whether the student is in the business co-op program
-STANCON: Boolean value for whether the student is in the strategic analysis concentration  
-ACCTCON: Boolean value for whether the student is in the accounting concentration
-MISCON: Boolean value for whether the student is in the mangement information system concentration
-ENTINNCON: Boolean value for whether the student is in the innovation and entrepreneurship concentration
-OPERMGTCON: Boolean value for whether the student is in the operation managements concentration
-HRMCON: Boolean value for whether the student is in the human resources management concentration
-INBUCON: Boolean value for whether the student is in the international business concentration
-DeclaredConcentration: Boolean value for whether the student declared their concentration  
-At_least_one_concentration_course_per_semester_enrolled: Boolean value for whether the student takes at least one concentration course for every semester in which they are enrolled 
-Mon_classes_prop: Proportion of classes on Monday out of total classes  
-Tues_classes_prop: Proportion of classes on Tuesday out of total classes    
-Wed_classes_prop: Proportion of classes on Wednesday out of total classes    
-Thurs_classes_prop: Proportion of classes on Thursday out of total classes    
-Fri_classes_prop: Proportion of classes on Friday out of total classes    
-MorningClassProp: Proportion of classes in the morning out of total classes    
-AfternoonClassProp: Proportion of classes in the afternoon out of total classes    
-OLC_courses_prop: Proportion of classes that are online out of total classes    
-Concentration.Credits.Prop.of.Total.Credits: Proportion of concentration course credits out of total credits 
-Certificate.Credits.Prop: Proportion of certificate course credits out of total credits  
-Bus.Credit.Prop: Proportion of business course credits out of total credits    
-Elective_credit_prop: Proportion of elective course credits out of total credits    
+ID: Student identifying id  
+HourStartMode:The mode of start times for each student   
+MorningClasses: Boolean value for more Morning classes (T) vs more Afternoon classes (F)  
+Credits.Taken.Annually: Credits taken annually  
+semesters_with_at_least_one_concentration_course: Number of semesters with at least one concentration course    
+Transfer: Boolean value for whether the student is a transfer student  
+BUSMAJ: Boolean value for whether the student is a business major  
+BUSJMA: Boolean value for whether the student is a business joint major  
+MINOR: Boolean value for whether the student is a business minor  
+FINCON: Boolean value for whether the student is in the financial concentration  
+MKTGCON: Boolean value for whether the student is in the marketing concentration  
+BUSCOP: Boolean value for whether the student is in the business co-op program  
+STANCON: Boolean value for whether the student is in the strategic analysis concentration    
+ACCTCON: Boolean value for whether the student is in the accounting concentration  
+MISCON: Boolean value for whether the student is in the mangement information system concentration  
+ENTINNCON: Boolean value for whether the student is in the innovation and entrepreneurship concentration  
+OPERMGTCON: Boolean value for whether the student is in the operation managements concentration  
+HRMCON: Boolean value for whether the student is in the human resources management concentration  
+INBUCON: Boolean value for whether the student is in the international business concentration  
+DeclaredConcentration: Boolean value for whether the student declared their concentration    
+At_least_one_concentration_course_per_semester_enrolled: Boolean value for whether the student takes at least one concentration course for every semester in which they are enrolled   
+Mon_classes_prop: Proportion of classes on Monday out of total classes    
+Tues_classes_prop: Proportion of classes on Tuesday out of total classes      
+Wed_classes_prop: Proportion of classes on Wednesday out of total classes      
+Thurs_classes_prop: Proportion of classes on Thursday out of total classes      
+Fri_classes_prop: Proportion of classes on Friday out of total classes      
+MorningClassProp: Proportion of classes in the morning out of total classes      
+AfternoonClassProp: Proportion of classes in the afternoon out of total classes      
+OLC_courses_prop: Proportion of classes that are online out of total classes      
+Concentration.Credits.Prop.of.Total.Credits: Proportion of concentration course credits out of total credits   
+Certificate.Credits.Prop: Proportion of certificate course credits out of total credits    
+Bus.Credit.Prop: Proportion of business course credits out of total credits      
+Elective_credit_prop: Proportion of elective course credits out of total credits      
 
 ## Machine Learning
 
