@@ -1,0 +1,248 @@
+```{r}
+library(tidyverse)
+library(ranger)
+library(caret)
+library(MASS)
+library(pdp)
+library(xgboost)
+library(glmnet)
+```
+# Machine Learning
+
+## Data Types Conversion
+```{r}
+data_types=function(data){
+  data=data %>%
+  mutate(across(c(
+                  "MorningClasses", 
+                  "Transfer", 
+                  "BUSMAJ", 
+                  "BUSJMA", 
+                  "MINOR", 
+                  "FINCON", 
+                  "MKTGCON", 
+                  "BUSCOP", 
+                  "STANCON", 
+                  "ACCTCON", 
+                  "MISCON", 
+                  "ENTINNCON", 
+                  "OPERMGTCON", 
+                  "HRMCON", 
+                  "INBUCON", 
+                  "DeclaredConcentration", 
+                  "At_least_one_concentration_course_per_semester_enrolled"), 
+                as.factor))
+  return(data)
+}
+```
+
+
+## Course Feature Selection
+```{r}
+courseFeatureSelection=function(data1){
+  data1=data1%>%dplyr::select(-c(STD_INDEX,Mon_classes,Tues_classes,Wed_classes,
+                          Thurs_classes,Fri_classes,MorningClassCount,AfternoonClassCount,HON,
+                          TotalClass,OLC_courses_count,Credits.Taken.Annualy,Concentration.Credits,
+                          Concentration.Courses.Taken,Semesters_enrolled,Concentration.Credits.Prop.of.Total.Credits,
+                          Credits.Towards.a.Certificate,Business.Credits,Certificate.Course,Bus.Course,Certificate.Credits.Prop,
+                          Bus.Credit.Prop,Avg.Courses.Taken.per.semester,OLC_courses_prop,LAWPHILCON,ECONDACON,APPCON,Elective_Credits))
+  return(data1)
+}
+```
+
+## Random Forest 
+
+```{r}
+rf=function(data,y){
+  set.seed(456)
+  partition=createDataPartition(data[[y]],p=0.75,list=FALSE)
+  data_train=data[partition,]
+  data_test=data[-partition,]
+  gridRF=expand.grid(mtry=c(3,5,10),splitrule="variance",min.node.size=c(1,3,5,10))
+  train_control= trainControl(
+    method = "cv",  
+    number = 10, 
+    verboseIter = FALSE
+  )
+  rg=train(as.formula(paste0("`", y, "` ~ .")),data=data_train,method="ranger",importance = "permutation",num.trees=1000,trControl = train_control,tuneGrid=gridRF)
+
+  importance=varImp(rg, scale = FALSE)
+  rfImportance=varImp(rg)
+  Top5RfImportance=rfImportance$importance%>%as.data.frame()%>%rownames_to_column("Feature") %>% arrange(desc(Overall))%>%head(5)
+  print(ggplot(data=Top5RfImportance,mapping=aes(x=Overall,y= reorder(Feature, Overall)))+geom_bar(stat="identity",fill="#A6192E")+xlab("Importance")+ylab("Variables")+ggtitle("Most Important Variables from the Random Forest Model"))
+
+
+  predictions=predict(rg, newdata = data_test)
+  print("Random Forest RMSE")
+  print(sqrt(mean((predictions - data_test[[y]])^2)))
+  return(list(Top5RfImportance,rg))
+}
+
+```
+
+## Linear Regression
+
+```{r}
+linearModel=function(data,y){
+  set.seed(456)
+  partition=createDataPartition(data[[y]],p=0.75,list=FALSE)
+  data_train=data[partition,]
+  data_test=data[-partition,]
+  lg=glm(as.formula(paste0("`", y, "` ~ .")), data = data_train, family = gaussian(link = "identity"))
+  lgPreds=predict(lg,newdata=data_test)
+  print("Linear Regression RMSE")
+  print(sqrt(mean((data_test[[y]] - lgPreds)^2)))
+  print(summary(lg))
+  return(lg)
+}
+```
+
+## Stepwise Regression
+```{r}
+stepwise=function(model,y,data){
+  set.seed(456)
+  partition=createDataPartition(data[[y]],p=0.75,list=FALSE)
+  data_train=data[partition,]
+  data_test=data[-partition,]
+  stepwise=stepAIC(model,direction = "both",trace=FALSE)
+  print(summary(stepwise))
+  lgPreds=predict(stepwise,newdata=data_test)
+  print("Stepwise Regression RMSE")
+  print(sqrt(mean((data_test[[y]] - lgPreds)^2)))
+}
+```
+
+
+## XGboost
+```{r}
+xg=function(data,y){
+  set.seed(456)
+  partition=createDataPartition(data[[y]],p=0.75,list=FALSE)
+  data_train=data[partition,]
+  data_test=data[-partition,]
+  gridRF=expand.grid(mtry=c(3,5,10),splitrule="variance",min.node.size=c(1,3,5,10))
+  train_control= trainControl(
+    method = "cv",  
+    number = 10, 
+    verboseIter = FALSE
+  )
+  rg=train(as.formula(paste0("`", y, "` ~ .")),data=data_train,method="ranger",importance = "permutation",num.trees=1000,trControl = train_control,tuneGrid=gridRF)
+
+  importance=varImp(rg, scale = FALSE)
+  rfImportance=varImp(rg)
+  Top5RfImportance=rfImportance$importance%>%as.data.frame()%>%rownames_to_column("Feature") %>% arrange(desc(Overall))%>%head(5)
+  print(ggplot(data=Top5RfImportance,mapping=aes(x=Overall,y= reorder(Feature, Overall)))+geom_bar(stat="identity",fill="#A6192E")+xlab("Importance")+ylab("Variables")+ggtitle("Most Important Variables from the Xgboost Model")) 
+
+  predictions=predict(rg, newdata = data_test)
+  print("Xgboost RMSE")
+  print(sqrt(mean((predictions - data_test[[y]])^2)))
+  return(list(Top5RfImportance,rg))
+}
+```
+
+## Credit Feature Selection
+```{r}
+creditFeatures=function(data){
+  data=data%>%dplyr::select(-c(STD_INDEX,Mon_classes,Tues_classes,Wed_classes,Thurs_classes,Fri_classes
+                        ,MorningClassCount,AfternoonClassCount,TotalClass,OLC_courses_count,Total.Courses
+                        ,Concentration.Courses.Taken,Semesters_enrolled,LAWPHILCON,ECONDACON,APPCON,Credits.Towards.a.Certificate
+                        ,Business.Credits,Certificate.Course,Bus.Course,Concentration.Courses.Prop.of.Total.Courses,Concentration.Credits,
+                        Certificate.Courses.Prop.of.Total.Courses,Business.Course.Prop.of.Total.Courses,Avg.Courses.Taken.per.semester,HON,Elective_Credits))
+  return(data)
+}
+```
+
+## Partial Dependence Plots Function
+
+```{r}
+pdp=function(data,model,variable,target){
+  Partial=partial(object=model,pred.var=variable,train = data)
+  colnames(Partial)=c("Variable","yhat")
+  print(ggplot(Partial,aes(x = Variable, y = yhat))+
+    geom_point(color = "#A6192E", size = 3) +
+    ggtitle(paste0("Partial Dependence Plot of ", variable, " vs ",target))+
+      xlab(variable) +
+      ylab(target)
+    )
+}
+  
+```
+
+## Reading in Data
+```{r}
+data=read.csv("EnrollmentsCleaned.csv")
+data=data_types(data)
+data1=data
+```
+
+## Annual Credits Taken 
+
+### Random Forest and Important Variables
+
+
+```{r}
+data=creditFeatures(data)
+```
+
+```{r}
+RF=rf(data,"Credits.Taken.Annualy")
+```
+
+### Partial Dependence Plot
+```{r}
+invisible(sapply(RF[[1]]$Feature, function(variable) {
+  pdp(data = data, model = RF[[2]], variable = variable, target = "Total Credits Annualy")
+}))
+```
+
+### Simple Linear Regression
+```{r}
+Credits_lm=linearModel(data,"Credits.Taken.Annualy")
+```
+
+```{r}
+plot(Credits_lm)
+```
+```{r}
+stepwise(Credits_lm,"Credits.Taken.Annualy",data)
+```
+
+
+```{r}
+xg(data,"Credits.Taken.Annualy")
+```
+
+
+
+
+## Annual Courses Taken
+
+### Random Forest and Important Variables
+```{r}
+data1=courseFeatureSelection(data1)
+```
+
+```{r}
+RF_Courses=rf(data1,"Total.Courses")
+```
+### Partial Dependence Plot
+
+```{r}
+invisible(sapply(RF_Courses[[1]]$Feature, function(variable) {
+  pdp(data = data1, model = RF_Courses[[2]], variable = variable, target = "Total.Courses")
+}))
+```
+### Simple Linear Regression
+```{r}
+Course_lm=linearModel(data1,"Total.Courses")
+```
+
+```{r}
+plot(Course_lm)
+```
+```{r}
+stepwise(Course_lm,"Total.Courses",data1)
+```
+
+
+

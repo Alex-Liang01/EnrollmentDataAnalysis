@@ -1,0 +1,288 @@
+
+```{r,include=FALSE,echo=FALSE}
+library(tidyverse)
+library(readxl)
+library(caret)
+library(ranger)
+```
+# Preprocessing Data
+
+## Reading in Data
+```{r}
+
+enrollments=read.csv("ENROL.csv")
+student=read.csv("STUDENT.csv")
+sheets=excel_sheets("Term_Concentration.xlsx")
+
+mylist=lapply(sheets,function(sheet){
+  read_excel("Term_Concentration.xlsx",sheet=sheet)
+})
+
+concentrations=mylist[[1]]
+term=mylist[[2]]
+
+credit=read.csv("SFU Courses.csv")
+
+course_concentrations=read.csv("BeedieConcentrations.csv")
+
+certificates=read.csv("BeedieCertificates.csv")
+```
+
+## Major Minor Feature Engineering
+
+```{r}
+generalStudentFeatureEngineering=function(student){
+  student=na.omit(student)
+  #Transfer Student
+  student=student%>%mutate(Transfer=case_when(str_detect(Plan,"BBY")~"Not Transfer",str_detect(Plan,"SRY")~"Not Transfer",str_detect(Plan,"TRAN")~"Transfer",TRUE~"Unknown"))
+  #Major Minor Information
+  student=student%>%mutate(BUSMAJ=if_else(str_detect(Plan,"BUSMAJ"),1,0))
+  student=student%>%mutate(BUSJMA=if_else(str_detect(Plan,"JMA"),1,0))
+  student=student%>%mutate(MINOR=if_else(str_detect(Plan,"MIN"),1,0))
+  student=student%>%mutate(HON=if_else(str_detect(Plan,"DHBBA"),1,0))
+  return(student)
+}
+```
+
+## Concentration Feature Engineering
+
+```{r}
+concentrationFeatureEngineering=function(student){
+  con_ind=data.frame(matrix(nrow = length(student), ncol = nrow(concentrations)))
+  split_values=strsplit(as.character(student$Subplan), ",")
+  unique_values=unique(unlist(split_values))
+  
+  subplan_indicator=data.frame(matrix(nrow = nrow(student), ncol = length(unique_values)))
+  colnames(subplan_indicator)=unique_values
+  for (i in seq_along(unique_values)) {
+    value = unique_values[i]
+    subplan_indicator[[value]]=sapply(split_values, function(row) value %in% row)
+  }
+  
+  student=cbind(student,subplan_indicator)
+  student=student%>%dplyr::select(-c("X","Plan"))
+  return(student)
+}
+
+```
+
+## Enrollment Feature Engineering
+
+```{r}
+enrollmentFeatureEngineering=function(enrollments){
+  #Joining tables and fixing col names
+  enrollments$AdmitTerm=as.character(enrollments$AdmitTerm)
+  enrollments=left_join(enrollments, term, by = c("AdmitTerm"="Term"))
+  enrollments=enrollments%>%dplyr::select(-c("Academic Year","Start Date","End Date","AdmitTerm"))
+  enrollments=enrollments%>%rename("AdmitTerm"=`Term Display`)
+  enrollments$EnolledSemester=as.character(enrollments$EnolledSemester)
+  enrollments=left_join(enrollments, term, by = c("EnolledSemester"="Term"))
+  enrollments=enrollments%>%dplyr::select(-c("Academic Year","Start Date","End Date","EnolledSemester"))
+  enrollments=enrollments%>%rename("Enrolled Semester"=`Term Display`)
+  enrollments=enrollments%>%mutate(Course=str_c(Subject,CatalogNbr,sep = " "))
+  enrollments=enrollments%>%dplyr::select(-c("X","Subject","CatalogNbr"))
+  #Features for weekday
+  enrollments$MON=if_else(enrollments$MON=="Y",1,0)
+  enrollments$Tues=if_else(enrollments$Tues=="Y",1,0)
+  enrollments$WED=if_else(enrollments$WED=="Y",1,0)
+  enrollments$Thurs=if_else(enrollments$Thurs=="Y",1,0)
+  enrollments$FRI=if_else(enrollments$FRI=="Y",1,0)
+  #Weekday features as int
+  enrollments$MON=as.integer(enrollments$MON)
+  enrollments$Tues=as.integer(enrollments$Tues)
+  enrollments$WED=as.integer(enrollments$WED)
+  enrollments$Thurs=as.integer(enrollments$Thurs)
+  enrollments$FRI=as.integer(enrollments$FRI)
+  #Feature engineering
+  enrollments=enrollments%>%mutate(MorningClass=if_else(HourStart>=12,0,1))
+  return(enrollments)
+}
+```
+
+## String Manipulations
+```{r}
+creditStringManipulation=function(credit){
+  credit=credit%>%mutate(Course=str_c(`Course.Faculty`,`Course.Code`,sep = " "))
+  credit=credit%>%dplyr::select(-c("X","Course.Faculty","Course.Code"))
+  return(credit)
+}
+```
+
+```{r}
+courseConcentrationStringManipulation=function(course_concentrations){
+  course_concentrations$Concentration=str_replace(course_concentrations$Concentration,"Innovation and Entrepreneurship","Entrepreneurship &  Innovation")
+  return(course_concentrations)
+}
+```
+
+## Student Classes Feature Engineering
+
+```{r}
+StudentYearlyEnrollmentFeatureEngineering=function(enrollments){
+              data=enrollments%>%group_by(STD_INDEX)%>%summarize(Mon_classes=sum(MON),
+                                                               Tues_classes=sum(Tues),
+                                                               Wed_classes=sum(WED),
+                                                               Thurs_classes=sum(Thurs),
+                                                               Fri_classes=sum(FRI),
+                                                               HourStartMode={
+                                                                 freq=table(HourStart)
+                                                                 max_count=max(freq)
+                                                                 modes=as.numeric(names(freq[freq == max_count]))
+                                                                 min(modes)
+                                                              },MorningClassCount=sum(MorningClass, na.rm = TRUE)
+                                                              ,AfternoonClassCount=sum(MorningClass==0, na.rm = TRUE)
+                                                              ,TotalClass=n(),OLC_courses_count=sum(SsrComponent=="OLC"))
+  return(data)
+}
+```
+
+## Enrollment Feature Engineering
+
+```{r}
+YearlyEnrollmentsFeatureEngineering=function(data,enrollments,credit,course_concentrations,student){
+  #Time related feature engineering for class enrollments
+  data$HourStartMode=if_else(data$HourStartMode==Inf,NA,data$HourStartMode)
+  data$MorningClasses=data$MorningClassCount>data$AfternoonClassCount
+  
+  #Removing duplicates due to the courses being offered on multiple days  
+  enrollments=enrollments%>%dplyr::select(c("STD_INDEX","Course","Enrolled Semester"))%>%distinct()
+  
+  #Calculating total amount of courses by students
+  total_courses=enrollments%>%group_by(STD_INDEX)%>%summarize(`Total Courses`=n())
+  data=data%>%left_join(total_courses,by="STD_INDEX")
+  
+  #Feature Engineering annual credit counts for each student
+  enrollments=left_join(enrollments,credit, by="Course")
+  annual_credits=enrollments%>%group_by(STD_INDEX)%>%summarize(`Credits Taken Annualy`=sum(Credit.Count))
+  data=left_join(data,annual_credits,by="STD_INDEX")
+  
+  #Concentrations Course joins 
+  course_concentrations=left_join(course_concentrations,concentrations,by=c("Concentration"="Name"))
+  enrollments=left_join(enrollments,course_concentrations,by=c("Course"="Course.Number"))
+  
+  #Mulitconcentration courses
+  multiconcentration=enrollments %>%
+    group_by(STD_INDEX, Course,`Enrolled Semester`) %>%
+    filter(n() > 1) %>%
+    ungroup()
+  multiconcentration=multiconcentration%>%group_by(STD_INDEX,Course,`Enrolled Semester`)%>%summarize(Code=str_c(Code,collapse = ", "))
+  
+  #Removing duplicates due to the courses being offered on multiple days 
+  enrollments=enrollments%>%distinct(`STD_INDEX`,Course,`Enrolled Semester`,.keep_all = TRUE)
+  
+  #Feature Engineering Course Concentrations
+  enrollments=enrollments%>%left_join(multiconcentration,by=c("STD_INDEX","Course","Enrolled Semester"),suffix=c("",".multiconcentration"))%>%mutate(Code=if_else(!is.na(Code.multiconcentration),Code.multiconcentration,Code))%>%dplyr::select(-Code.multiconcentration)
+  
+  #Feature Engineering Business Courses
+  enrollments=enrollments%>%mutate(`BUS Course`=if_else(str_detect(Course,"BUS"),1,0))
+  enrollments$BusCredit=enrollments$`Credit.Count`*enrollments$`BUS Course`
+  
+  #Feature Engineering Courses related to declared concentration
+  student_concentrations=student%>%dplyr::select(STD_INDEX,Subplan)
+  enrollments=left_join(enrollments,student_concentrations,by="STD_INDEX")
+  enrollments=enrollments%>%rowwise()%>%mutate(related_to_concentration=any(str_split(Code, ",")[[1]] %in% str_split(Subplan, ",")[[1]]))%>%ungroup()
+  enrollments$related_to_concentration=as.numeric(enrollments$related_to_concentration)
+  enrollments=enrollments%>%mutate(related_to_concentration=replace(related_to_concentration,is.na(related_to_concentration),0))
+  enrollments=enrollments%>%mutate(`Concentration Credit Count`=Credit.Count*related_to_concentration)
+  
+  #Credits related to declared Concentration
+  enroll=enrollments%>%group_by(STD_INDEX,`Enrolled Semester`)%>%summarize(`Concentration Course Count by Semester`=sum(related_to_concentration))
+  enroll$AtLeastOneConcentrationCourse=if_else(enroll$`Concentration Course Count by Semester`>1,1,0)
+  ENROLL=enroll%>%group_by(STD_INDEX)%>%summarize(Semesters_enrolled=n(),semesters_with_at_least_one_concentration_course=sum(AtLeastOneConcentrationCourse))
+  related_courses=enrollments%>%dplyr::select(STD_INDEX,`Enrolled Semester`,`Concentration Credit Count`,Course,`related_to_concentration`)
+  concentration_credits_yearly=related_courses%>%group_by(STD_INDEX)%>%summarize(`Concentration Credits`=sum(`Concentration Credit Count`),`Concentration Courses Taken`=sum(`related_to_concentration`))
+  
+  #Joins
+  data=left_join(data,concentration_credits_yearly,by="STD_INDEX")
+  data=left_join(data,ENROLL,by="STD_INDEX")
+  
+  student$DeclaredConcentration=if_else(student$Subplan=="",0,1)
+  student=student%>%dplyr::select(-c(Program,Subplan,AdmitTerm))
+  
+  data=left_join(data,student,by="STD_INDEX")
+  data=data%>%mutate(At_least_one_concentration_course_per_semester_enrolled=if_else(semesters_with_at_least_one_concentration_course==Semesters_enrolled,1,0))
+  data$At_least_one_concentration_course_per_semester_enrolled=as.factor(data$At_least_one_concentration_course_per_semester_enrolled)
+  
+  #Class Props
+  data$Mon_classes_prop=data$Mon_classes/data$TotalClass
+  data$Tues_classes_prop=data$Tues_classes/data$TotalClass
+  data$Wed_classes_prop=data$Wed_classes/data$TotalClass
+  data$Thurs_classes_prop=data$Thurs_classes/data$TotalClass
+  data$Fri_classes_prop=data$Fri_classes/data$TotalClass
+  
+  data$MorningClassProp=data$MorningClassCount/data$TotalClass
+  data$AfternoonClassProp=data$AfternoonClassCount/data$TotalClass
+  data$OLC_courses_prop=data$OLC_courses_count/data$`Total Courses`
+  
+  #Changing type to factors
+  data$HourStartMode=as.factor(data$HourStartMode)
+  data=data%>%mutate(across(where(is.logical),as.factor))
+  data$`Concentration Credits`=as.integer(data$`Concentration Credits`)
+  data$Transfer=as.factor(data$Transfer)
+  data$BUSMAJ=as.factor(data$BUSMAJ)
+  data$BUSJMA=as.factor(data$BUSJMA)
+  data$MINOR=as.factor(data$MINOR)
+  data$HON=as.factor(data$HON)
+  data$DeclaredConcentration=as.factor(data$DeclaredConcentration)
+  
+  data$`Concentration Credits Prop of Total Credits`=data$`Concentration Credits`/data$`Credits Taken Annualy`
+  
+  data=data%>%drop_na()
+  STD_INDEX=data%>%dplyr::select(c(STD_INDEX))
+  
+  #Certifcate Related Feature Engineering
+  certificates$Course=str_c(certificates$Course.Faculty,certificates$Course.Code,sep=" ")
+  certificates=certificates%>%dplyr::select(c(Course,Certificate))
+  certificates$Course=str_replace(certificates$Course,"  "," ")
+  certificates=certificates%>%group_by(Course)%>%summarize(Certificates=paste(Certificate, collapse = ", "))
+  enrollments=left_join(enrollments,certificates,by="Course")
+  enrollments=enrollments%>%mutate(certificate_course=if_else(is.na(Certificates),0,1))
+  enrollments=enrollments%>%mutate(certificate_credits=if_else(certificate_course==1,certificate_course*Credit.Count,0))
+  certificate_credits=enrollments%>%group_by(STD_INDEX)%>%summarize(`Credits Towards a Certificate`=sum(certificate_credits), `Business Credits`=sum(BusCredit),`Certificate Course`=sum(certificate_course),`Bus Course`=sum(`BUS Course`))
+
+  data=left_join(data,certificate_credits,by="STD_INDEX")
+  return(data)
+}
+```
+
+## Proportions Feature Engineering
+```{r}
+creditProportions=function(data){
+
+  data=data%>%mutate(`Certificate Credits Prop`=`Credits Towards a Certificate`/`Credits Taken Annualy`,
+                   `Bus Credit Prop`=`Business Credits`/`Credits Taken Annualy`)
+
+  data=data%>%mutate(`Concentration Courses Prop of Total Courses`=`Concentration Courses Taken`/`Total Courses`,
+                   `Avg Courses Taken per semester`=`Total Courses`/`Semesters_enrolled`,
+                   `Certificate Courses Prop of Total Courses`=`Certificate Course`/`Total Courses`,
+                   `Business Course Prop of Total Courses`=`Bus Course`/`Total Courses`)
+  return(data)
+}
+```
+
+## Elective Feature Engineering
+```{r}
+electiveProportions=function(data){
+  data=data%>%mutate(Elective_Credits=`Credits Taken Annualy`-`Business Credits`,Elective_credit_prop=Elective_Credits/`Credits Taken Annualy`)
+  return(data)
+}
+```
+
+```{r, warning=FALSE}
+student=generalStudentFeatureEngineering(student)
+student=concentrationFeatureEngineering(student)
+enrollments=enrollmentFeatureEngineering(enrollments)
+credit=creditStringManipulation(credit)
+course_concentrations=courseConcentrationStringManipulation(course_concentrations)
+data=StudentYearlyEnrollmentFeatureEngineering(enrollments)
+data=YearlyEnrollmentsFeatureEngineering(data,enrollments,credit,course_concentrations,student)
+data=creditProportions(data)
+data=electiveProportions(data)
+```
+```{r}
+#write.csv(data,"EnrollmentsCleaned.csv",row.names = FALSE)
+```
+
+
+
+
