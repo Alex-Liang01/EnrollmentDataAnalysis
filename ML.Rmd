@@ -1,4 +1,9 @@
-```{r}
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r,include=FALSE,echo=FALSE}
 library(tidyverse)
 library(ranger)
 library(caret)
@@ -40,12 +45,20 @@ data_types=function(data){
 ## Course Feature Selection
 ```{r}
 courseFeatureSelection=function(data1){
-  data1=data1%>%dplyr::select(-c(STD_INDEX,Mon_classes,Tues_classes,Wed_classes,
-                          Thurs_classes,Fri_classes,MorningClassCount,AfternoonClassCount,HON,
-                          TotalClass,OLC_courses_count,Credits.Taken.Annualy,Concentration.Credits,
-                          Concentration.Courses.Taken,Semesters_enrolled,Concentration.Credits.Prop.of.Total.Credits,
-                          Credits.Towards.a.Certificate,Business.Credits,Certificate.Course,Bus.Course,Certificate.Credits.Prop,
-                          Bus.Credit.Prop,Avg.Courses.Taken.per.semester,OLC_courses_prop,LAWPHILCON,ECONDACON,APPCON,Elective_Credits))
+  data1=data1%>%dplyr::select(-c(STD_INDEX,Mon_classes,
+                                 Tues_classes,Wed_classes,
+                          Thurs_classes,Fri_classes,
+                          MorningClassCount,AfternoonClassCount,HON,
+                          TotalClass,OLC_courses_count,
+                          Credits.Taken.Annualy,Concentration.Credits,
+                          Concentration.Courses.Taken,Semesters_enrolled,
+                          Concentration.Credits.Prop.of.Total.Credits,
+                          Credits.Towards.a.Certificate,Business.Credits,
+                          Certificate.Course,Bus.Course,
+                          Certificate.Credits.Prop,
+                          Bus.Credit.Prop,Avg.Courses.Taken.per.semester,
+                          OLC_courses_prop,LAWPHILCON,ECONDACON,
+                          APPCON,Elective_Credits,Elective_credit_prop))
   return(data1)
 }
 ```
@@ -58,18 +71,26 @@ rf=function(data,y){
   partition=createDataPartition(data[[y]],p=0.75,list=FALSE)
   data_train=data[partition,]
   data_test=data[-partition,]
-  gridRF=expand.grid(mtry=c(3,5,10),splitrule="variance",min.node.size=c(1,3,5,10))
+  gridRF=expand.grid(mtry=c(3,5,10),splitrule="variance",
+                     min.node.size=c(1,3,5,10))
   train_control= trainControl(
     method = "cv",  
     number = 10, 
     verboseIter = FALSE
   )
-  rg=train(as.formula(paste0("`", y, "` ~ .")),data=data_train,method="ranger",importance = "permutation",num.trees=1000,trControl = train_control,tuneGrid=gridRF)
+  rg=train(as.formula(paste0("`", y, "` ~ .")),
+           data=data_train,method="ranger",importance = "permutation",
+           num.trees=1000,trControl = train_control,tuneGrid=gridRF)
 
   importance=varImp(rg, scale = FALSE)
   rfImportance=varImp(rg)
-  Top5RfImportance=rfImportance$importance%>%as.data.frame()%>%rownames_to_column("Feature") %>% arrange(desc(Overall))%>%head(5)
-  print(ggplot(data=Top5RfImportance,mapping=aes(x=Overall,y= reorder(Feature, Overall)))+geom_bar(stat="identity",fill="#A6192E")+xlab("Importance")+ylab("Variables")+ggtitle("Most Important Variables from the Random Forest Model"))
+  Top5RfImportance=rfImportance$importance%>%as.data.frame()%>%
+    rownames_to_column("Feature") %>% arrange(desc(Overall))%>%head(5)
+  print(ggplot(data=Top5RfImportance,
+               mapping=aes(x=Overall,y= reorder(Feature, Overall)))+
+          geom_bar(stat="identity",fill="#A6192E")+xlab("Importance")+
+          ylab("Variables")+
+          ggtitle("Most Important Variables from the Random Forest Model"))
 
 
   predictions=predict(rg, newdata = data_test)
@@ -88,7 +109,8 @@ linearModel=function(data,y){
   partition=createDataPartition(data[[y]],p=0.75,list=FALSE)
   data_train=data[partition,]
   data_test=data[-partition,]
-  lg=glm(as.formula(paste0("`", y, "` ~ .")), data = data_train, family = gaussian(link = "identity"))
+  lg=glm(as.formula(paste0("`", y, "` ~ .")), 
+         data = data_train, family = gaussian(link = "identity"))
   lgPreds=predict(lg,newdata=data_test)
   print("Linear Regression RMSE")
   print(sqrt(mean((data_test[[y]] - lgPreds)^2)))
@@ -120,18 +142,26 @@ xg=function(data,y){
   partition=createDataPartition(data[[y]],p=0.75,list=FALSE)
   data_train=data[partition,]
   data_test=data[-partition,]
-  gridRF=expand.grid(mtry=c(3,5,10),splitrule="variance",min.node.size=c(1,3,5,10))
+  gridRF=expand.grid(mtry=c(3,5,10),splitrule="variance",
+                     min.node.size=c(1,3,5,10))
   train_control= trainControl(
     method = "cv",  
     number = 10, 
     verboseIter = FALSE
   )
-  rg=train(as.formula(paste0("`", y, "` ~ .")),data=data_train,method="ranger",importance = "permutation",num.trees=1000,trControl = train_control,tuneGrid=gridRF)
+  rg=train(as.formula(paste0("`", y, "` ~ .")),
+           data=data_train,method="ranger",importance = "permutation",
+           num.trees=1000,trControl = train_control,tuneGrid=gridRF)
 
   importance=varImp(rg, scale = FALSE)
   rfImportance=varImp(rg)
-  Top5RfImportance=rfImportance$importance%>%as.data.frame()%>%rownames_to_column("Feature") %>% arrange(desc(Overall))%>%head(5)
-  print(ggplot(data=Top5RfImportance,mapping=aes(x=Overall,y= reorder(Feature, Overall)))+geom_bar(stat="identity",fill="#A6192E")+xlab("Importance")+ylab("Variables")+ggtitle("Most Important Variables from the Xgboost Model")) 
+  Top5RfImportance=rfImportance$importance%>%as.data.frame()%>%
+    rownames_to_column("Feature") %>% arrange(desc(Overall))%>%head(5)
+  print(ggplot(data=Top5RfImportance,
+               mapping=aes(x=Overall,y= reorder(Feature, Overall)))+
+          geom_bar(stat="identity",fill="#A6192E")+xlab("Importance")+
+          ylab("Variables")+
+          ggtitle("Most Important Variables from the Xgboost Model")) 
 
   predictions=predict(rg, newdata = data_test)
   print("Xgboost RMSE")
@@ -143,11 +173,19 @@ xg=function(data,y){
 ## Credit Feature Selection
 ```{r}
 creditFeatures=function(data){
-  data=data%>%dplyr::select(-c(STD_INDEX,Mon_classes,Tues_classes,Wed_classes,Thurs_classes,Fri_classes
-                        ,MorningClassCount,AfternoonClassCount,TotalClass,OLC_courses_count,Total.Courses
-                        ,Concentration.Courses.Taken,Semesters_enrolled,LAWPHILCON,ECONDACON,APPCON,Credits.Towards.a.Certificate
-                        ,Business.Credits,Certificate.Course,Bus.Course,Concentration.Courses.Prop.of.Total.Courses,Concentration.Credits,
-                        Certificate.Courses.Prop.of.Total.Courses,Business.Course.Prop.of.Total.Courses,Avg.Courses.Taken.per.semester,HON,Elective_Credits))
+  data=data%>%dplyr::select(-c(STD_INDEX,Mon_classes,Tues_classes,
+                               Wed_classes,Thurs_classes,Fri_classes
+                        ,MorningClassCount,AfternoonClassCount,TotalClass,
+                        OLC_courses_count,Total.Courses
+                        ,Concentration.Courses.Taken,Semesters_enrolled,
+                        LAWPHILCON,ECONDACON,APPCON,
+                        Credits.Towards.a.Certificate
+                        ,Business.Credits,Certificate.Course,
+                        Bus.Course,
+                        Concentration.Courses.Prop.of.Total.Courses,Concentration.Credits,
+                        Certificate.Courses.Prop.of.Total.Courses,
+                        Business.Course.Prop.of.Total.Courses,
+                        Avg.Courses.Taken.per.semester,HON,Elective_Credits))
   return(data)
 }
 ```
@@ -191,7 +229,8 @@ RF=rf(data,"Credits.Taken.Annualy")
 ### Partial Dependence Plot
 ```{r}
 invisible(sapply(RF[[1]]$Feature, function(variable) {
-  pdp(data = data, model = RF[[2]], variable = variable, target = "Total Credits Annualy")
+  pdp(data = data, model = RF[[2]], 
+      variable = variable, target = "Total Credits Annualy")
 }))
 ```
 
@@ -220,6 +259,7 @@ xg(data,"Credits.Taken.Annualy")
 ### Random Forest and Important Variables
 ```{r}
 data1=courseFeatureSelection(data1)
+colnames(data1)
 ```
 
 ```{r}
@@ -229,7 +269,8 @@ RF_Courses=rf(data1,"Total.Courses")
 
 ```{r}
 invisible(sapply(RF_Courses[[1]]$Feature, function(variable) {
-  pdp(data = data1, model = RF_Courses[[2]], variable = variable, target = "Total.Courses")
+  pdp(data = data1, model = RF_Courses[[2]], 
+      variable = variable, target = "Total.Courses")
 }))
 ```
 ### Simple Linear Regression
