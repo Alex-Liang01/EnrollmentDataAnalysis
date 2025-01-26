@@ -18,26 +18,29 @@ With all datasets combined, features were engineered to such as proportions for 
 
 A standard random forest, stepwise regression, and xgboost was used to investigate the most important variables related to course concentrations. The RMSE for each of the models are as follows: 5.55, 6.32 for each of the random forest, stepwise regression and xgboost models.
 
-<img width="524" alt="image" src="https://github.com/user-attachments/assets/86aba55e-6cf1-4ca5-b8d6-87675813b37e" />
+![image](https://github.com/user-attachments/assets/7cfa9583-0c36-480f-91a0-08ab5bb9ca5f)
+
 
 From the random forest the 5 most important variables found are Thursday classes proportion of total courses, OLC Courses proportion of total, Bus Credit proportion of total, elective credit proportion of total and Friday classes proportion of total classes.
 
-<img width="608" alt="image" src="https://github.com/user-attachments/assets/95391307-0568-48bd-a1d4-5221181d7f52" />
+![image](https://github.com/user-attachments/assets/271da707-f29a-43b2-b464-4dd48fd2b803)
+
 
 From the stepwise regression model, the most important variables related to the annual course credits taken are the mode of the start time for each student,the number of semesters with at least one concentration course, being in the co-op program, having at least one concentration course per semester enrolled, morning class proportion of total classes, afternoon class proportion of total classes, OLC course proportion of total classes and Concentration Credits Prop of total credits. All of these positively affect the annual course credits taken except for the concentration credits prop of total credits and having at least one concentration course per semester enrolled, and being enrolled in the co-op program.
 
 ## Data Visualization
 
 To investigate the trends found from the machine learning models we used partial dependence plots to visualize the findings. 
-<img width="520" alt="image" src="https://github.com/user-attachments/assets/ec6b1d59-5984-45e9-8077-2d82f60d50ab" />
+![image](https://github.com/user-attachments/assets/3875ee3d-c7ca-48b9-8b76-d2d36f4d7324)
 
-<img width="520" alt="image" src="https://github.com/user-attachments/assets/60f926cd-1049-421f-8df6-21494829f53f" />
+![image](https://github.com/user-attachments/assets/de692e61-c760-42c4-aac3-995d0c68832e)
 
-<img width="523" alt="image" src="https://github.com/user-attachments/assets/0150d814-ed15-4667-8739-691a293ed495" />
+![image](https://github.com/user-attachments/assets/ff227573-c935-433c-b651-ae279b251e5a)
 
-<img width="523" alt="image" src="https://github.com/user-attachments/assets/c0523ceb-41dd-42eb-a84b-a76a547f411b" />
+![image](https://github.com/user-attachments/assets/eb45f34c-786f-472c-9130-2bf76696c5cf)
 
-<img width="524" alt="image" src="https://github.com/user-attachments/assets/20f96a85-b942-4530-a955-d435e4bdc4b8" />
+![image](https://github.com/user-attachments/assets/59525aa5-807f-42c3-8261-ed8fa6034d5b)
+
 
 
 
@@ -46,11 +49,13 @@ It is observed that many of the observations found from the machine learning mod
 
 The two main model plots we found interesting was the subject distribution by number of concentrations for students that take over 30 credits and the average credits from other concentration courses by number of subplans (excluding core courses).
 
-<img width="486" alt="image" src="https://github.com/user-attachments/assets/33cdab8a-a82a-4c56-8f7c-bcc8de62956e" />
+![image](https://github.com/user-attachments/assets/a1d2e0dd-919b-40ba-abd3-b96e1e3eb23d)
+
 
 In the plot above on the subject distribution by number of concentrations, the largest light green bars are for the Business courses. It was observed that students with only one concentration tend to take a lot of unrelated electives when compared to those with two or more concentrations.
 
-![Screenshot 2025-01-25 204600](https://github.com/user-attachments/assets/23c064dd-3e98-49b2-9e68-a47f2bcb8ad5)
+![image](https://github.com/user-attachments/assets/f6730749-7b70-48dc-ae1b-2e633baff3dd)
+
 
 In the plot above on the average credits from other concentration courses by number of subplans (excluding core courses) it is observed that as the number of concentrations go up, the average amount of business concentration courses that are unrelated to the student's concentration goes down with many of their credits being more related to their concentration choices.
 
